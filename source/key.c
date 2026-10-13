@@ -1,15 +1,18 @@
 #include "key.h"
-#include <reg52.h>
+#include <ch554.h>
+#include <usbcdc.h>
 
-/* ===================== 按键硬件定义 ===================== */
-/* 低电平表示按下；按实际电路调整 IO */
-sbit KEY0 = P1^0;
-sbit KEY1 = P1^1;
-sbit KEY2 = P1^2;
-sbit KEY3 = P1^3;
+/* ===================== 按键硬件定义 =====================
+ * 硬件连接: P1.2 --[按键]-- GND
+ * - 未按: P1.2 = HIGH (内部上拉)
+ * - 按下: P1.2 = LOW  (被按键拉到GND)
+ *
+ * 使用 CH554 寄存器直接操作(兼容SDCC, 不使用sbit)
+ */
+#define KEY0_PIN      2       /* P1.2 */
 
 /* ===================== 状态机状态 ===================== */
-typedef enum 
+typedef enum
 {
     KEY_ST_IDLE = 0,
     KEY_ST_DEBOUNCE_PRESS,
@@ -18,23 +21,23 @@ typedef enum
     KEY_ST_LONG_PRESS
 } KeyState;
 
-typedef struct 
+typedef struct
 {
     KeyState     state;
-    unsigned int timer;
-    unsigned char long_triggered;
+    uint16_t     timer;
+    uint8_t      long_triggered;
 } KeyCtrl;
 
-static KeyCtrl g_keys[KEY_NUM];
+static __xdata KeyCtrl g_keys[KEY_NUM];
 
-/* ===================== 环形事件缓冲（ISR 写入，主循环读取） ===================== */
-static volatile KeyEventMsg g_evt_buf[EVENT_BUF_SIZE];
-static volatile unsigned char g_evt_wr = 0;   /* 写指针 */
-static volatile unsigned char g_evt_rd = 0;   /* 读指针 */
+/* ===================== 环形事件缓冲（ISR 写入，主循环读取） ==================== */
+static volatile __xdata KeyEventMsg g_evt_buf[EVENT_BUF_SIZE];
+static volatile uint8_t g_evt_wr = 0;   /* 写指针 */
+static volatile uint8_t g_evt_rd = 0;   /* 读指针 */
 
-static void evt_push(unsigned char id, KeyEvent ev)
+static void evt_push(uint8_t id, KeyEvent ev)
 {
-    unsigned char next = (g_evt_wr + 1) % EVENT_BUF_SIZE;
+    uint8_t next = (g_evt_wr + 1) % EVENT_BUF_SIZE;
     if (next != g_evt_rd)   /* 缓冲未满才写入 */
     {
         g_evt_buf[g_evt_wr].key_id = id;
@@ -43,7 +46,7 @@ static void evt_push(unsigned char id, KeyEvent ev)
     }
 }
 
-static unsigned char evt_pop(KeyEventMsg *out)
+static uint8_t evt_pop(KeyEventMsg *out)
 {
     if (g_evt_rd == g_evt_wr) return 0;   /* 空 */
     *out = g_evt_buf[g_evt_rd];
@@ -52,23 +55,20 @@ static unsigned char evt_pop(KeyEventMsg *out)
 }
 
 /* ===================== 读取单个按键电平 ===================== */
-static unsigned char key_is_pressed(unsigned char id)
+static uint8_t key_is_pressed(uint8_t id)
 {
-    switch (id)
+    if (id == 0)
     {
-        case 0: return (KEY0 == 0) ? 1 : 0;
-        case 1: return (KEY1 == 0) ? 1 : 0;
-        case 2: return (KEY2 == 0) ? 1 : 0;
-        case 3: return (KEY3 == 0) ? 1 : 0;
-        default: return 0;
+        return (P1 & (1 << KEY0_PIN)) ? 0 : 1;  /* P1.2 低电平=按下 */
     }
+    return 0;
 }
 
 /* ===================== 单个按键扫描（非阻塞状态机） ===================== */
-static KeyEvent key_scan_one(unsigned char id)
+static KeyEvent key_scan_one(uint8_t id)
 {
     KeyCtrl *k = &g_keys[id];
-    unsigned char pressed = key_is_pressed(id);
+    uint8_t pressed = key_is_pressed(id);
     KeyEvent ev = KEY_EVENT_NONE;
 
     switch (k->state)
@@ -122,7 +122,7 @@ static KeyEvent key_scan_one(unsigned char id)
                 if (++k->timer >= DEBOUNCE_CNT)
                 {
                     if (!k->long_triggered)
-                        ev = KEY_EVENT_SHORT_PRESS;   /* 约束1&2：释放且未长按 -> 短按 */
+                        ev = KEY_EVENT_SHORT_PRESS;   /* 释放且未长按 -> 短按 */
                     k->state = KEY_ST_IDLE;
                     k->timer = 0;
                 }
@@ -139,7 +139,7 @@ static KeyEvent key_scan_one(unsigned char id)
             {
                 if (++k->timer >= REPEAT_INTERVAL_CNT)
                 {
-                    ev = KEY_EVENT_REPEAT;            /* 约束3：连续按只产生 REPEAT */
+                    ev = KEY_EVENT_REPEAT;            /* 连续按只产生 REPEAT */
                     k->timer = 0;
                 }
             }
@@ -159,11 +159,16 @@ static KeyEvent key_scan_one(unsigned char id)
     return ev;
 }
 
-/* ===================== 对外接口实现 ===================== */
+/* ===================== 对外接口实现 ==================== */
 
 void key_init(void)
 {
-    unsigned char i;
+    uint8_t i;
+
+    /* 配置P1.2为准双向口模式(带内部上拉), 低电平有效 */
+    P1_MOD_OC &= ~(1 << KEY0_PIN);                              /* 推挽模式 */
+    P1_DIR_PU |= (1 << KEY0_PIN);                               /* 使能内部上拉 */
+
     for (i = 0; i < KEY_NUM; i++)
     {
         g_keys[i].state = KEY_ST_IDLE;
@@ -176,12 +181,13 @@ void key_init(void)
 
 void key_timer_tick(void)
 {
-    static volatile unsigned int ms_tick = 0;
+    static volatile uint16_t ms_tick = 0;
 
     if (++ms_tick >= SCAN_TICK_DIV)
     {
-        unsigned char i;
+        uint8_t i;
         ms_tick = 0;
+
         for (i = 0; i < KEY_NUM; i++)
         {
             KeyEvent ev = key_scan_one(i);
@@ -191,7 +197,7 @@ void key_timer_tick(void)
     }
 }
 
-unsigned char key_event_get(KeyEventMsg *out)
+uint8_t key_event_get(KeyEventMsg *out)
 {
     return evt_pop(out);
 }

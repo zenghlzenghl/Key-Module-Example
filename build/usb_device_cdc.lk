@@ -1,0 +1,23 @@
+-muwx
+-i usb_device_cdc.ihx
+-M
+-X 0x0300
+-C 0x3800
+-b HOME = 0x0000
+-b XSEG = 0x0100
+-b PSEG = 0x0100
+-b ISEG = 0x0000
+-b BSEG = 0x0000
+-k c:\Users\Y5043\.eide\tools\sdcc\bin\..\lib\small
+-l mcs51
+-l libsdcc
+-l libint
+-l liblong
+-l libfloat
+main.rel
+usbcdc.rel
+usbapp.rel
+key.rel
+debug.rel
+
+-e

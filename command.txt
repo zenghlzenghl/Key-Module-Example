@@ -1,0 +1,1 @@
+D:\tools\WCH\WCH.CN\App\WCHISPTool\WCHISPTool_CH54x-55x\.\WCHISPTool_CH54x-55x.exe -c "D:\tools\WCH\WCH.CN\App\WCHISPTool\WCHISPTool_CH54x-55x\TEMP.INI" -o download -f "D:\tools\WCH\ch554_sdcc-master\examples\usb_device_cdc\build\usb_device_cdc.bin"

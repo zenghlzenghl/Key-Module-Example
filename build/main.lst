@@ -1,0 +1,947 @@
+                                      1 ;--------------------------------------------------------
+                                      2 ; File Created by SDCC : free open source ANSI-C Compiler
+                                      3 ; Version 4.2.0 #13081 (MINGW64)
+                                      4 ;--------------------------------------------------------
+                                      5 	.module main
+                                      6 	.optsdcc -mmcs51 --model-small
+                                      7 	
+                                      8 ;--------------------------------------------------------
+                                      9 ; Public variables in this module
+                                     10 ;--------------------------------------------------------
+                                     11 	.globl _KeyRepeatMsg
+                                     12 	.globl _KeyLongPressMsg
+                                     13 	.globl _KeyShortPressMsg
+                                     14 	.globl _DeviceInterrupt
+                                     15 	.globl _Timer0Interrupt
+                                     16 	.globl _main
+                                     17 	.globl _key_event_get
+                                     18 	.globl _key_timer_tick
+                                     19 	.globl _key_init
+                                     20 	.globl _UsbApp_Feed
+                                     21 	.globl _UsbCdc_TxSend
+                                     22 	.globl _UsbCdc_TxReady
+                                     23 	.globl _UsbCdc_RxDone
+                                     24 	.globl _UsbCdc_RxRead
+                                     25 	.globl _UsbCdc_RxBytes
+                                     26 	.globl _UsbCdc_IsConfigured
+                                     27 	.globl _UsbCdc_Init
+                                     28 	.globl _UsbCdc_DeviceInterrupt
+                                     29 	.globl _mDelaymS
+                                     30 	.globl _CfgFsys
+                                     31 	.globl _UIF_BUS_RST
+                                     32 	.globl _UIF_DETECT
+                                     33 	.globl _UIF_TRANSFER
+                                     34 	.globl _UIF_SUSPEND
+                                     35 	.globl _UIF_HST_SOF
+                                     36 	.globl _UIF_FIFO_OV
+                                     37 	.globl _U_SIE_FREE
+                                     38 	.globl _U_TOG_OK
+                                     39 	.globl _U_IS_NAK
+                                     40 	.globl _ADC_CHAN0
+                                     41 	.globl _ADC_CHAN1
+                                     42 	.globl _CMP_CHAN
+                                     43 	.globl _ADC_START
+                                     44 	.globl _ADC_IF
+                                     45 	.globl _CMP_IF
+                                     46 	.globl _CMPO
+                                     47 	.globl _U1RI
+                                     48 	.globl _U1TI
+                                     49 	.globl _U1RB8
+                                     50 	.globl _U1TB8
+                                     51 	.globl _U1REN
+                                     52 	.globl _U1SMOD
+                                     53 	.globl _U1SM0
+                                     54 	.globl _S0_R_FIFO
+                                     55 	.globl _S0_T_FIFO
+                                     56 	.globl _S0_FREE
+                                     57 	.globl _S0_IF_BYTE
+                                     58 	.globl _S0_IF_FIRST
+                                     59 	.globl _S0_IF_OV
+                                     60 	.globl _S0_FST_ACT
+                                     61 	.globl _CP_RL2
+                                     62 	.globl _C_T2
+                                     63 	.globl _TR2
+                                     64 	.globl _EXEN2
+                                     65 	.globl _TCLK
+                                     66 	.globl _RCLK
+                                     67 	.globl _EXF2
+                                     68 	.globl _CAP1F
+                                     69 	.globl _TF2
+                                     70 	.globl _RI
+                                     71 	.globl _TI
+                                     72 	.globl _RB8
+                                     73 	.globl _TB8
+                                     74 	.globl _REN
+                                     75 	.globl _SM2
+                                     76 	.globl _SM1
+                                     77 	.globl _SM0
+                                     78 	.globl _IT0
+                                     79 	.globl _IE0
+                                     80 	.globl _IT1
+                                     81 	.globl _IE1
+                                     82 	.globl _TR0
+                                     83 	.globl _TF0
+                                     84 	.globl _TR1
+                                     85 	.globl _TF1
+                                     86 	.globl _RXD
+                                     87 	.globl _PWM1_
+                                     88 	.globl _TXD
+                                     89 	.globl _PWM2_
+                                     90 	.globl _AIN3
+                                     91 	.globl _VBUS1
+                                     92 	.globl _INT0
+                                     93 	.globl _TXD1_
+                                     94 	.globl _INT1
+                                     95 	.globl _T0
+                                     96 	.globl _RXD1_
+                                     97 	.globl _PWM2
+                                     98 	.globl _T1
+                                     99 	.globl _UDP
+                                    100 	.globl _UDM
+                                    101 	.globl _TIN0
+                                    102 	.globl _CAP1
+                                    103 	.globl _T2
+                                    104 	.globl _AIN0
+                                    105 	.globl _VBUS2
+                                    106 	.globl _TIN1
+                                    107 	.globl _CAP2
+                                    108 	.globl _T2EX
+                                    109 	.globl _RXD_
+                                    110 	.globl _TXD_
+                                    111 	.globl _AIN1
+                                    112 	.globl _UCC1
+                                    113 	.globl _TIN2
+                                    114 	.globl _SCS
+                                    115 	.globl _CAP1_
+                                    116 	.globl _T2_
+                                    117 	.globl _AIN2
+                                    118 	.globl _UCC2
+                                    119 	.globl _TIN3
+                                    120 	.globl _PWM1
+                                    121 	.globl _MOSI
+                                    122 	.globl _TIN4
+                                    123 	.globl _RXD1
+                                    124 	.globl _MISO
+                                    125 	.globl _TIN5
+                                    126 	.globl _TXD1
+                                    127 	.globl _SCK
+                                    128 	.globl _IE_SPI0
+                                    129 	.globl _IE_TKEY
+                                    130 	.globl _IE_USB
+                                    131 	.globl _IE_ADC
+                                    132 	.globl _IE_UART1
+                                    133 	.globl _IE_PWMX
+                                    134 	.globl _IE_GPIO
+                                    135 	.globl _IE_WDOG
+                                    136 	.globl _PX0
+                                    137 	.globl _PT0
+                                    138 	.globl _PX1
+                                    139 	.globl _PT1
+                                    140 	.globl _PS
+                                    141 	.globl _PT2
+                                    142 	.globl _PL_FLAG
+                                    143 	.globl _PH_FLAG
+                                    144 	.globl _EX0
+                                    145 	.globl _ET0
+                                    146 	.globl _EX1
+                                    147 	.globl _ET1
+                                    148 	.globl _ES
+                                    149 	.globl _ET2
+                                    150 	.globl _E_DIS
+                                    151 	.globl _EA
+                                    152 	.globl _P
+                                    153 	.globl _F1
+                                    154 	.globl _OV
+                                    155 	.globl _RS0
+                                    156 	.globl _RS1
+                                    157 	.globl _F0
+                                    158 	.globl _AC
+                                    159 	.globl _CY
+                                    160 	.globl _UEP1_DMA_H
+                                    161 	.globl _UEP1_DMA_L
+                                    162 	.globl _UEP1_DMA
+                                    163 	.globl _UEP0_DMA_H
+                                    164 	.globl _UEP0_DMA_L
+                                    165 	.globl _UEP0_DMA
+                                    166 	.globl _UEP2_3_MOD
+                                    167 	.globl _UEP4_1_MOD
+                                    168 	.globl _UEP3_DMA_H
+                                    169 	.globl _UEP3_DMA_L
+                                    170 	.globl _UEP3_DMA
+                                    171 	.globl _UEP2_DMA_H
+                                    172 	.globl _UEP2_DMA_L
+                                    173 	.globl _UEP2_DMA
+                                    174 	.globl _USB_DEV_AD
+                                    175 	.globl _USB_CTRL
+                                    176 	.globl _USB_INT_EN
+                                    177 	.globl _UEP4_T_LEN
+                                    178 	.globl _UEP4_CTRL
+                                    179 	.globl _UEP0_T_LEN
+                                    180 	.globl _UEP0_CTRL
+                                    181 	.globl _USB_RX_LEN
+                                    182 	.globl _USB_MIS_ST
+                                    183 	.globl _USB_INT_ST
+                                    184 	.globl _USB_INT_FG
+                                    185 	.globl _UEP3_T_LEN
+                                    186 	.globl _UEP3_CTRL
+                                    187 	.globl _UEP2_T_LEN
+                                    188 	.globl _UEP2_CTRL
+                                    189 	.globl _UEP1_T_LEN
+                                    190 	.globl _UEP1_CTRL
+                                    191 	.globl _UDEV_CTRL
+                                    192 	.globl _USB_C_CTRL
+                                    193 	.globl _TKEY_DATH
+                                    194 	.globl _TKEY_DATL
+                                    195 	.globl _TKEY_DAT
+                                    196 	.globl _TKEY_CTRL
+                                    197 	.globl _ADC_DATA
+                                    198 	.globl _ADC_CFG
+                                    199 	.globl _ADC_CTRL
+                                    200 	.globl _SBAUD1
+                                    201 	.globl _SBUF1
+                                    202 	.globl _SCON1
+                                    203 	.globl _SPI0_SETUP
+                                    204 	.globl _SPI0_CK_SE
+                                    205 	.globl _SPI0_CTRL
+                                    206 	.globl _SPI0_DATA
+                                    207 	.globl _SPI0_STAT
+                                    208 	.globl _PWM_CK_SE
+                                    209 	.globl _PWM_CTRL
+                                    210 	.globl _PWM_DATA1
+                                    211 	.globl _PWM_DATA2
+                                    212 	.globl _T2CAP1H
+                                    213 	.globl _T2CAP1L
+                                    214 	.globl _T2CAP1
+                                    215 	.globl _TH2
+                                    216 	.globl _TL2
+                                    217 	.globl _T2COUNT
+                                    218 	.globl _RCAP2H
+                                    219 	.globl _RCAP2L
+                                    220 	.globl _RCAP2
+                                    221 	.globl _T2MOD
+                                    222 	.globl _T2CON
+                                    223 	.globl _SBUF
+                                    224 	.globl _SCON
+                                    225 	.globl _TH1
+                                    226 	.globl _TH0
+                                    227 	.globl _TL1
+                                    228 	.globl _TL0
+                                    229 	.globl _TMOD
+                                    230 	.globl _TCON
+                                    231 	.globl _XBUS_AUX
+                                    232 	.globl _PIN_FUNC
+                                    233 	.globl _P3_DIR_PU
+                                    234 	.globl _P3_MOD_OC
+                                    235 	.globl _P3
+                                    236 	.globl _P2
+                                    237 	.globl _P1_DIR_PU
+                                    238 	.globl _P1_MOD_OC
+                                    239 	.globl _P1
+                                    240 	.globl _ROM_CTRL
+                                    241 	.globl _ROM_DATA_H
+                                    242 	.globl _ROM_DATA_L
+                                    243 	.globl _ROM_DATA
+                                    244 	.globl _ROM_ADDR_H
+                                    245 	.globl _ROM_ADDR_L
+                                    246 	.globl _ROM_ADDR
+                                    247 	.globl _GPIO_IE
+                                    248 	.globl _IP_EX
+                                    249 	.globl _IE_EX
+                                    250 	.globl _IP
+                                    251 	.globl _IE
+                                    252 	.globl _WDOG_COUNT
+                                    253 	.globl _RESET_KEEP
+                                    254 	.globl _WAKE_CTRL
+                                    255 	.globl _CLOCK_CFG
+                                    256 	.globl _PCON
+                                    257 	.globl _GLOBAL_CFG
+                                    258 	.globl _SAFE_MOD
+                                    259 	.globl _DPH
+                                    260 	.globl _DPL
+                                    261 	.globl _SP
+                                    262 	.globl _B
+                                    263 	.globl _ACC
+                                    264 	.globl _PSW
+                                    265 ;--------------------------------------------------------
+                                    266 ; special function registers
+                                    267 ;--------------------------------------------------------
+                                    268 	.area RSEG    (ABS,DATA)
+      000000                        269 	.org 0x0000
+                           0000D0   270 _PSW	=	0x00d0
+                           0000E0   271 _ACC	=	0x00e0
+                           0000F0   272 _B	=	0x00f0
+                           000081   273 _SP	=	0x0081
+                           000082   274 _DPL	=	0x0082
+                           000083   275 _DPH	=	0x0083
+                           0000A1   276 _SAFE_MOD	=	0x00a1
+                           0000B1   277 _GLOBAL_CFG	=	0x00b1
+                           000087   278 _PCON	=	0x0087
+                           0000B9   279 _CLOCK_CFG	=	0x00b9
+                           0000A9   280 _WAKE_CTRL	=	0x00a9
+                           0000FE   281 _RESET_KEEP	=	0x00fe
+                           0000FF   282 _WDOG_COUNT	=	0x00ff
+                           0000A8   283 _IE	=	0x00a8
+                           0000B8   284 _IP	=	0x00b8
+                           0000E8   285 _IE_EX	=	0x00e8
+                           0000E9   286 _IP_EX	=	0x00e9
+                           0000C7   287 _GPIO_IE	=	0x00c7
+                           008584   288 _ROM_ADDR	=	0x8584
+                           000084   289 _ROM_ADDR_L	=	0x0084
+                           000085   290 _ROM_ADDR_H	=	0x0085
+                           008F8E   291 _ROM_DATA	=	0x8f8e
+                           00008E   292 _ROM_DATA_L	=	0x008e
+                           00008F   293 _ROM_DATA_H	=	0x008f
+                           000086   294 _ROM_CTRL	=	0x0086
+                           000090   295 _P1	=	0x0090
+                           000092   296 _P1_MOD_OC	=	0x0092
+                           000093   297 _P1_DIR_PU	=	0x0093
+                           0000A0   298 _P2	=	0x00a0
+                           0000B0   299 _P3	=	0x00b0
+                           000096   300 _P3_MOD_OC	=	0x0096
+                           000097   301 _P3_DIR_PU	=	0x0097
+                           0000C6   302 _PIN_FUNC	=	0x00c6
+                           0000A2   303 _XBUS_AUX	=	0x00a2
+                           000088   304 _TCON	=	0x0088
+                           000089   305 _TMOD	=	0x0089
+                           00008A   306 _TL0	=	0x008a
+                           00008B   307 _TL1	=	0x008b
+                           00008C   308 _TH0	=	0x008c
+                           00008D   309 _TH1	=	0x008d
+                           000098   310 _SCON	=	0x0098
+                           000099   311 _SBUF	=	0x0099
+                           0000C8   312 _T2CON	=	0x00c8
+                           0000C9   313 _T2MOD	=	0x00c9
+                           00CBCA   314 _RCAP2	=	0xcbca
+                           0000CA   315 _RCAP2L	=	0x00ca
+                           0000CB   316 _RCAP2H	=	0x00cb
+                           00CDCC   317 _T2COUNT	=	0xcdcc
+                           0000CC   318 _TL2	=	0x00cc
+                           0000CD   319 _TH2	=	0x00cd
+                           00CFCE   320 _T2CAP1	=	0xcfce
+                           0000CE   321 _T2CAP1L	=	0x00ce
+                           0000CF   322 _T2CAP1H	=	0x00cf
+                           00009B   323 _PWM_DATA2	=	0x009b
+                           00009C   324 _PWM_DATA1	=	0x009c
+                           00009D   325 _PWM_CTRL	=	0x009d
+                           00009E   326 _PWM_CK_SE	=	0x009e
+                           0000F8   327 _SPI0_STAT	=	0x00f8
+                           0000F9   328 _SPI0_DATA	=	0x00f9
+                           0000FA   329 _SPI0_CTRL	=	0x00fa
+                           0000FB   330 _SPI0_CK_SE	=	0x00fb
+                           0000FC   331 _SPI0_SETUP	=	0x00fc
+                           0000C0   332 _SCON1	=	0x00c0
+                           0000C1   333 _SBUF1	=	0x00c1
+                           0000C2   334 _SBAUD1	=	0x00c2
+                           000080   335 _ADC_CTRL	=	0x0080
+                           00009A   336 _ADC_CFG	=	0x009a
+                           00009F   337 _ADC_DATA	=	0x009f
+                           0000C3   338 _TKEY_CTRL	=	0x00c3
+                           00C5C4   339 _TKEY_DAT	=	0xc5c4
+                           0000C4   340 _TKEY_DATL	=	0x00c4
+                           0000C5   341 _TKEY_DATH	=	0x00c5
+                           000091   342 _USB_C_CTRL	=	0x0091
+                           0000D1   343 _UDEV_CTRL	=	0x00d1
+                           0000D2   344 _UEP1_CTRL	=	0x00d2
+                           0000D3   345 _UEP1_T_LEN	=	0x00d3
+                           0000D4   346 _UEP2_CTRL	=	0x00d4
+                           0000D5   347 _UEP2_T_LEN	=	0x00d5
+                           0000D6   348 _UEP3_CTRL	=	0x00d6
+                           0000D7   349 _UEP3_T_LEN	=	0x00d7
+                           0000D8   350 _USB_INT_FG	=	0x00d8
+                           0000D9   351 _USB_INT_ST	=	0x00d9
+                           0000DA   352 _USB_MIS_ST	=	0x00da
+                           0000DB   353 _USB_RX_LEN	=	0x00db
+                           0000DC   354 _UEP0_CTRL	=	0x00dc
+                           0000DD   355 _UEP0_T_LEN	=	0x00dd
+                           0000DE   356 _UEP4_CTRL	=	0x00de
+                           0000DF   357 _UEP4_T_LEN	=	0x00df
+                           0000E1   358 _USB_INT_EN	=	0x00e1
+                           0000E2   359 _USB_CTRL	=	0x00e2
+                           0000E3   360 _USB_DEV_AD	=	0x00e3
+                           00E5E4   361 _UEP2_DMA	=	0xe5e4
+                           0000E4   362 _UEP2_DMA_L	=	0x00e4
+                           0000E5   363 _UEP2_DMA_H	=	0x00e5
+                           00E7E6   364 _UEP3_DMA	=	0xe7e6
+                           0000E6   365 _UEP3_DMA_L	=	0x00e6
+                           0000E7   366 _UEP3_DMA_H	=	0x00e7
+                           0000EA   367 _UEP4_1_MOD	=	0x00ea
+                           0000EB   368 _UEP2_3_MOD	=	0x00eb
+                           00EDEC   369 _UEP0_DMA	=	0xedec
+                           0000EC   370 _UEP0_DMA_L	=	0x00ec
+                           0000ED   371 _UEP0_DMA_H	=	0x00ed
+                           00EFEE   372 _UEP1_DMA	=	0xefee
+                           0000EE   373 _UEP1_DMA_L	=	0x00ee
+                           0000EF   374 _UEP1_DMA_H	=	0x00ef
+                                    375 ;--------------------------------------------------------
+                                    376 ; special function bits
+                                    377 ;--------------------------------------------------------
+                                    378 	.area RSEG    (ABS,DATA)
+      000000                        379 	.org 0x0000
+                           0000D7   380 _CY	=	0x00d7
+                           0000D6   381 _AC	=	0x00d6
+                           0000D5   382 _F0	=	0x00d5
+                           0000D4   383 _RS1	=	0x00d4
+                           0000D3   384 _RS0	=	0x00d3
+                           0000D2   385 _OV	=	0x00d2
+                           0000D1   386 _F1	=	0x00d1
+                           0000D0   387 _P	=	0x00d0
+                           0000AF   388 _EA	=	0x00af
+                           0000AE   389 _E_DIS	=	0x00ae
+                           0000AD   390 _ET2	=	0x00ad
+                           0000AC   391 _ES	=	0x00ac
+                           0000AB   392 _ET1	=	0x00ab
+                           0000AA   393 _EX1	=	0x00aa
+                           0000A9   394 _ET0	=	0x00a9
+                           0000A8   395 _EX0	=	0x00a8
+                           0000BF   396 _PH_FLAG	=	0x00bf
+                           0000BE   397 _PL_FLAG	=	0x00be
+                           0000BD   398 _PT2	=	0x00bd
+                           0000BC   399 _PS	=	0x00bc
+                           0000BB   400 _PT1	=	0x00bb
+                           0000BA   401 _PX1	=	0x00ba
+                           0000B9   402 _PT0	=	0x00b9
+                           0000B8   403 _PX0	=	0x00b8
+                           0000EF   404 _IE_WDOG	=	0x00ef
+                           0000EE   405 _IE_GPIO	=	0x00ee
+                           0000ED   406 _IE_PWMX	=	0x00ed
+                           0000EC   407 _IE_UART1	=	0x00ec
+                           0000EB   408 _IE_ADC	=	0x00eb
+                           0000EA   409 _IE_USB	=	0x00ea
+                           0000E9   410 _IE_TKEY	=	0x00e9
+                           0000E8   411 _IE_SPI0	=	0x00e8
+                           000097   412 _SCK	=	0x0097
+                           000097   413 _TXD1	=	0x0097
+                           000097   414 _TIN5	=	0x0097
+                           000096   415 _MISO	=	0x0096
+                           000096   416 _RXD1	=	0x0096
+                           000096   417 _TIN4	=	0x0096
+                           000095   418 _MOSI	=	0x0095
+                           000095   419 _PWM1	=	0x0095
+                           000095   420 _TIN3	=	0x0095
+                           000095   421 _UCC2	=	0x0095
+                           000095   422 _AIN2	=	0x0095
+                           000094   423 _T2_	=	0x0094
+                           000094   424 _CAP1_	=	0x0094
+                           000094   425 _SCS	=	0x0094
+                           000094   426 _TIN2	=	0x0094
+                           000094   427 _UCC1	=	0x0094
+                           000094   428 _AIN1	=	0x0094
+                           000093   429 _TXD_	=	0x0093
+                           000092   430 _RXD_	=	0x0092
+                           000091   431 _T2EX	=	0x0091
+                           000091   432 _CAP2	=	0x0091
+                           000091   433 _TIN1	=	0x0091
+                           000091   434 _VBUS2	=	0x0091
+                           000091   435 _AIN0	=	0x0091
+                           000090   436 _T2	=	0x0090
+                           000090   437 _CAP1	=	0x0090
+                           000090   438 _TIN0	=	0x0090
+                           0000B7   439 _UDM	=	0x00b7
+                           0000B6   440 _UDP	=	0x00b6
+                           0000B5   441 _T1	=	0x00b5
+                           0000B4   442 _PWM2	=	0x00b4
+                           0000B4   443 _RXD1_	=	0x00b4
+                           0000B4   444 _T0	=	0x00b4
+                           0000B3   445 _INT1	=	0x00b3
+                           0000B2   446 _TXD1_	=	0x00b2
+                           0000B2   447 _INT0	=	0x00b2
+                           0000B2   448 _VBUS1	=	0x00b2
+                           0000B2   449 _AIN3	=	0x00b2
+                           0000B1   450 _PWM2_	=	0x00b1
+                           0000B1   451 _TXD	=	0x00b1
+                           0000B0   452 _PWM1_	=	0x00b0
+                           0000B0   453 _RXD	=	0x00b0
+                           00008F   454 _TF1	=	0x008f
+                           00008E   455 _TR1	=	0x008e
+                           00008D   456 _TF0	=	0x008d
+                           00008C   457 _TR0	=	0x008c
+                           00008B   458 _IE1	=	0x008b
+                           00008A   459 _IT1	=	0x008a
+                           000089   460 _IE0	=	0x0089
+                           000088   461 _IT0	=	0x0088
+                           00009F   462 _SM0	=	0x009f
+                           00009E   463 _SM1	=	0x009e
+                           00009D   464 _SM2	=	0x009d
+                           00009C   465 _REN	=	0x009c
+                           00009B   466 _TB8	=	0x009b
+                           00009A   467 _RB8	=	0x009a
+                           000099   468 _TI	=	0x0099
+                           000098   469 _RI	=	0x0098
+                           0000CF   470 _TF2	=	0x00cf
+                           0000CF   471 _CAP1F	=	0x00cf
+                           0000CE   472 _EXF2	=	0x00ce
+                           0000CD   473 _RCLK	=	0x00cd
+                           0000CC   474 _TCLK	=	0x00cc
+                           0000CB   475 _EXEN2	=	0x00cb
+                           0000CA   476 _TR2	=	0x00ca
+                           0000C9   477 _C_T2	=	0x00c9
+                           0000C8   478 _CP_RL2	=	0x00c8
+                           0000FF   479 _S0_FST_ACT	=	0x00ff
+                           0000FE   480 _S0_IF_OV	=	0x00fe
+                           0000FD   481 _S0_IF_FIRST	=	0x00fd
+                           0000FC   482 _S0_IF_BYTE	=	0x00fc
+                           0000FB   483 _S0_FREE	=	0x00fb
+                           0000FA   484 _S0_T_FIFO	=	0x00fa
+                           0000F8   485 _S0_R_FIFO	=	0x00f8
+                           0000C7   486 _U1SM0	=	0x00c7
+                           0000C5   487 _U1SMOD	=	0x00c5
+                           0000C4   488 _U1REN	=	0x00c4
+                           0000C3   489 _U1TB8	=	0x00c3
+                           0000C2   490 _U1RB8	=	0x00c2
+                           0000C1   491 _U1TI	=	0x00c1
+                           0000C0   492 _U1RI	=	0x00c0
+                           000087   493 _CMPO	=	0x0087
+                           000086   494 _CMP_IF	=	0x0086
+                           000085   495 _ADC_IF	=	0x0085
+                           000084   496 _ADC_START	=	0x0084
+                           000083   497 _CMP_CHAN	=	0x0083
+                           000081   498 _ADC_CHAN1	=	0x0081
+                           000080   499 _ADC_CHAN0	=	0x0080
+                           0000DF   500 _U_IS_NAK	=	0x00df
+                           0000DE   501 _U_TOG_OK	=	0x00de
+                           0000DD   502 _U_SIE_FREE	=	0x00dd
+                           0000DC   503 _UIF_FIFO_OV	=	0x00dc
+                           0000DB   504 _UIF_HST_SOF	=	0x00db
+                           0000DA   505 _UIF_SUSPEND	=	0x00da
+                           0000D9   506 _UIF_TRANSFER	=	0x00d9
+                           0000D8   507 _UIF_DETECT	=	0x00d8
+                           0000D8   508 _UIF_BUS_RST	=	0x00d8
+                                    509 ;--------------------------------------------------------
+                                    510 ; overlayable register banks
+                                    511 ;--------------------------------------------------------
+                                    512 	.area REG_BANK_0	(REL,OVR,DATA)
+      000000                        513 	.ds 8
+                                    514 ;--------------------------------------------------------
+                                    515 ; overlayable bit register bank
+                                    516 ;--------------------------------------------------------
+                                    517 	.area BIT_BANK	(REL,OVR,DATA)
+      000000                        518 bits:
+      000000                        519 	.ds 1
+                           008000   520 	b0 = bits[0]
+                           008100   521 	b1 = bits[1]
+                           008200   522 	b2 = bits[2]
+                           008300   523 	b3 = bits[3]
+                           008400   524 	b4 = bits[4]
+                           008500   525 	b5 = bits[5]
+                           008600   526 	b6 = bits[6]
+                           008700   527 	b7 = bits[7]
+                                    528 ;--------------------------------------------------------
+                                    529 ; internal ram data
+                                    530 ;--------------------------------------------------------
+                                    531 	.area DSEG    (DATA)
+      000000                        532 _UsbCmd_Poll_key_msg_65536_57:
+      000000                        533 	.ds 2
+                                    534 ;--------------------------------------------------------
+                                    535 ; overlayable items in internal ram
+                                    536 ;--------------------------------------------------------
+                                    537 ;--------------------------------------------------------
+                                    538 ; Stack segment in internal ram
+                                    539 ;--------------------------------------------------------
+                                    540 	.area	SSEG
+      000000                        541 __start__stack:
+      000000                        542 	.ds	1
+                                    543 
+                                    544 ;--------------------------------------------------------
+                                    545 ; indirectly addressable internal ram data
+                                    546 ;--------------------------------------------------------
+                                    547 	.area ISEG    (DATA)
+                                    548 ;--------------------------------------------------------
+                                    549 ; absolute internal ram data
+                                    550 ;--------------------------------------------------------
+                                    551 	.area IABS    (ABS,DATA)
+                                    552 	.area IABS    (ABS,DATA)
+                                    553 ;--------------------------------------------------------
+                                    554 ; bit data
+                                    555 ;--------------------------------------------------------
+                                    556 	.area BSEG    (BIT)
+                                    557 ;--------------------------------------------------------
+                                    558 ; paged external ram data
+                                    559 ;--------------------------------------------------------
+                                    560 	.area PSEG    (PAG,XDATA)
+                                    561 ;--------------------------------------------------------
+                                    562 ; external ram data
+                                    563 ;--------------------------------------------------------
+                                    564 	.area XSEG    (XDATA)
+                                    565 ;--------------------------------------------------------
+                                    566 ; absolute external ram data
+                                    567 ;--------------------------------------------------------
+                                    568 	.area XABS    (ABS,XDATA)
+                                    569 ;--------------------------------------------------------
+                                    570 ; external initialized ram data
+                                    571 ;--------------------------------------------------------
+                                    572 	.area XISEG   (XDATA)
+                                    573 	.area HOME    (CODE)
+                                    574 	.area GSINIT0 (CODE)
+                                    575 	.area GSINIT1 (CODE)
+                                    576 	.area GSINIT2 (CODE)
+                                    577 	.area GSINIT3 (CODE)
+                                    578 	.area GSINIT4 (CODE)
+                                    579 	.area GSINIT5 (CODE)
+                                    580 	.area GSINIT  (CODE)
+                                    581 	.area GSFINAL (CODE)
+                                    582 	.area CSEG    (CODE)
+                                    583 ;--------------------------------------------------------
+                                    584 ; interrupt vector
+                                    585 ;--------------------------------------------------------
+                                    586 	.area HOME    (CODE)
+      000000                        587 __interrupt_vect:
+      000000 02r00r00         [24]  588 	ljmp	__sdcc_gsinit_startup
+      000003 32               [24]  589 	reti
+      000004                        590 	.ds	7
+      00000B 02r01r00         [24]  591 	ljmp	_Timer0Interrupt
+      00000E                        592 	.ds	5
+      000013 32               [24]  593 	reti
+      000014                        594 	.ds	7
+      00001B 32               [24]  595 	reti
+      00001C                        596 	.ds	7
+      000023 32               [24]  597 	reti
+      000024                        598 	.ds	7
+      00002B 32               [24]  599 	reti
+      00002C                        600 	.ds	7
+      000033 32               [24]  601 	reti
+      000034                        602 	.ds	7
+      00003B 32               [24]  603 	reti
+      00003C                        604 	.ds	7
+      000043 02r01r45         [24]  605 	ljmp	_DeviceInterrupt
+                                    606 ;--------------------------------------------------------
+                                    607 ; global & static initialisations
+                                    608 ;--------------------------------------------------------
+                                    609 	.area HOME    (CODE)
+                                    610 	.area GSINIT  (CODE)
+                                    611 	.area GSFINAL (CODE)
+                                    612 	.area GSINIT  (CODE)
+                                    613 	.globl __sdcc_gsinit_startup
+                                    614 	.globl __sdcc_program_startup
+                                    615 	.globl __start__stack
+                                    616 	.globl __mcs51_genXINIT
+                                    617 	.globl __mcs51_genXRAMCLEAR
+                                    618 	.globl __mcs51_genRAMCLEAR
+                                    619 	.area GSFINAL (CODE)
+      000000 02r00r46         [24]  620 	ljmp	__sdcc_program_startup
+                                    621 ;--------------------------------------------------------
+                                    622 ; Home
+                                    623 ;--------------------------------------------------------
+                                    624 	.area HOME    (CODE)
+                                    625 	.area HOME    (CODE)
+      000046                        626 __sdcc_program_startup:
+      000046 02r00rC8         [24]  627 	ljmp	_main
+                                    628 ;	return from main will return to caller
+                                    629 ;--------------------------------------------------------
+                                    630 ; code
+                                    631 ;--------------------------------------------------------
+                                    632 	.area CSEG    (CODE)
+                                    633 ;------------------------------------------------------------
+                                    634 ;Allocation info for local variables in function 'key_event_report'
+                                    635 ;------------------------------------------------------------
+                                    636 ;event                     Allocated to registers r5 r6 r7 
+                                    637 ;waitCnt                   Allocated to registers r7 
+                                    638 ;------------------------------------------------------------
+                                    639 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:32: static void key_event_report(KeyEvent *event)
+                                    640 ;	-----------------------------------------
+                                    641 ;	 function key_event_report
+                                    642 ;	-----------------------------------------
+      000000                        643 _key_event_report:
+                           000007   644 	ar7 = 0x07
+                           000006   645 	ar6 = 0x06
+                           000005   646 	ar5 = 0x05
+                           000004   647 	ar4 = 0x04
+                           000003   648 	ar3 = 0x03
+                           000002   649 	ar2 = 0x02
+                           000001   650 	ar1 = 0x01
+                           000000   651 	ar0 = 0x00
+                                    652 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:36: switch (*event)
+      000000 AD 82            [24]  653 	mov	r5,dpl
+      000002 AE 83            [24]  654 	mov	r6,dph
+      000004 12r00r00         [24]  655 	lcall	__gptrget
+      000007 FF               [12]  656 	mov	r7,a
+      000008 BF 01 02         [24]  657 	cjne	r7,#0x01,00174$
+      00000B 80 0B            [24]  658 	sjmp	00128$
+      00000D                        659 00174$:
+      00000D BF 02 02         [24]  660 	cjne	r7,#0x02,00175$
+      000010 80 31            [24]  661 	sjmp	00131$
+      000012                        662 00175$:
+      000012 BF 03 02         [24]  663 	cjne	r7,#0x03,00176$
+      000015 80 57            [24]  664 	sjmp	00134$
+      000017                        665 00176$:
+      000017 22               [24]  666 	ret
+                                    667 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:39: for ( waitCnt = 0; waitCnt < 250 && !UsbCdc_TxReady(); waitCnt++ )
+      000018                        668 00128$:
+      000018 7F 00            [12]  669 	mov	r7,#0x00
+      00001A                        670 00111$:
+      00001A BF FA 00         [24]  671 	cjne	r7,#0xfa,00177$
+      00001D                        672 00177$:
+      00001D 50 18            [24]  673 	jnc	00102$
+      00001F C0 07            [24]  674 	push	ar7
+      000021 12r00r00         [24]  675 	lcall	_UsbCdc_TxReady
+      000024 E5 82            [12]  676 	mov	a,dpl
+      000026 D0 07            [24]  677 	pop	ar7
+      000028 70 0D            [24]  678 	jnz	00102$
+                                    679 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:41: mDelaymS( 2 );
+      00002A 90 00 02         [24]  680 	mov	dptr,#0x0002
+      00002D C0 07            [24]  681 	push	ar7
+      00002F 12r00r00         [24]  682 	lcall	_mDelaymS
+      000032 D0 07            [24]  683 	pop	ar7
+                                    684 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:39: for ( waitCnt = 0; waitCnt < 250 && !UsbCdc_TxReady(); waitCnt++ )
+      000034 0F               [12]  685 	inc	r7
+      000035 80 E3            [24]  686 	sjmp	00111$
+      000037                        687 00102$:
+                                    688 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:43: UsbCdc_TxSend( KeyShortPressMsg, sizeof(KeyShortPressMsg) - 1 );
+      000037 75*00 12         [24]  689 	mov	_UsbCdc_TxSend_PARM_2,#0x12
+      00003A 90r00r00         [24]  690 	mov	dptr,#_KeyShortPressMsg
+      00003D 75 F0 80         [24]  691 	mov	b,#0x80
+                                    692 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:44: break;
+                                    693 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:47: for ( waitCnt = 0; waitCnt < 250 && !UsbCdc_TxReady(); waitCnt++ )
+      000040 02r00r00         [24]  694 	ljmp	_UsbCdc_TxSend
+      000043                        695 00131$:
+      000043 7F 00            [12]  696 	mov	r7,#0x00
+      000045                        697 00115$:
+      000045 BF FA 00         [24]  698 	cjne	r7,#0xfa,00180$
+      000048                        699 00180$:
+      000048 50 18            [24]  700 	jnc	00104$
+      00004A C0 07            [24]  701 	push	ar7
+      00004C 12r00r00         [24]  702 	lcall	_UsbCdc_TxReady
+      00004F E5 82            [12]  703 	mov	a,dpl
+      000051 D0 07            [24]  704 	pop	ar7
+      000053 70 0D            [24]  705 	jnz	00104$
+                                    706 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:49: mDelaymS( 2 );
+      000055 90 00 02         [24]  707 	mov	dptr,#0x0002
+      000058 C0 07            [24]  708 	push	ar7
+      00005A 12r00r00         [24]  709 	lcall	_mDelaymS
+      00005D D0 07            [24]  710 	pop	ar7
+                                    711 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:47: for ( waitCnt = 0; waitCnt < 250 && !UsbCdc_TxReady(); waitCnt++ )
+      00005F 0F               [12]  712 	inc	r7
+      000060 80 E3            [24]  713 	sjmp	00115$
+      000062                        714 00104$:
+                                    715 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:51: UsbCdc_TxSend( KeyLongPressMsg, sizeof(KeyLongPressMsg) - 1 );
+      000062 75*00 11         [24]  716 	mov	_UsbCdc_TxSend_PARM_2,#0x11
+      000065 90r00r13         [24]  717 	mov	dptr,#_KeyLongPressMsg
+      000068 75 F0 80         [24]  718 	mov	b,#0x80
+                                    719 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:52: break;
+                                    720 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:55: for ( waitCnt = 0; waitCnt < 250 && !UsbCdc_TxReady(); waitCnt++ )
+      00006B 02r00r00         [24]  721 	ljmp	_UsbCdc_TxSend
+      00006E                        722 00134$:
+      00006E 7F 00            [12]  723 	mov	r7,#0x00
+      000070                        724 00119$:
+      000070 BF FA 00         [24]  725 	cjne	r7,#0xfa,00183$
+      000073                        726 00183$:
+      000073 50 18            [24]  727 	jnc	00106$
+      000075 C0 07            [24]  728 	push	ar7
+      000077 12r00r00         [24]  729 	lcall	_UsbCdc_TxReady
+      00007A E5 82            [12]  730 	mov	a,dpl
+      00007C D0 07            [24]  731 	pop	ar7
+      00007E 70 0D            [24]  732 	jnz	00106$
+                                    733 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:57: mDelaymS( 2 );
+      000080 90 00 02         [24]  734 	mov	dptr,#0x0002
+      000083 C0 07            [24]  735 	push	ar7
+      000085 12r00r00         [24]  736 	lcall	_mDelaymS
+      000088 D0 07            [24]  737 	pop	ar7
+                                    738 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:55: for ( waitCnt = 0; waitCnt < 250 && !UsbCdc_TxReady(); waitCnt++ )
+      00008A 0F               [12]  739 	inc	r7
+      00008B 80 E3            [24]  740 	sjmp	00119$
+      00008D                        741 00106$:
+                                    742 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:59: UsbCdc_TxSend( KeyRepeatMsg, sizeof(KeyRepeatMsg) - 1 );
+      00008D 75*00 0D         [24]  743 	mov	_UsbCdc_TxSend_PARM_2,#0x0d
+      000090 90r00r25         [24]  744 	mov	dptr,#_KeyRepeatMsg
+      000093 75 F0 80         [24]  745 	mov	b,#0x80
+                                    746 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:64: }
+                                    747 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:65: }
+      000096 02r00r00         [24]  748 	ljmp	_UsbCdc_TxSend
+                                    749 ;------------------------------------------------------------
+                                    750 ;Allocation info for local variables in function 'UsbCmd_Poll'
+                                    751 ;------------------------------------------------------------
+                                    752 ;key_msg                   Allocated with name '_UsbCmd_Poll_key_msg_65536_57'
+                                    753 ;usbByte                   Allocated to registers 
+                                    754 ;------------------------------------------------------------
+                                    755 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:87: static void UsbCmd_Poll(void)
+                                    756 ;	-----------------------------------------
+                                    757 ;	 function UsbCmd_Poll
+                                    758 ;	-----------------------------------------
+      000099                        759 _UsbCmd_Poll:
+                                    760 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:91: while(1)
+      000099                        761 00108$:
+                                    762 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:93: if(!UsbCdc_IsConfigured())                                       /* 主机未枚举完成 */
+      000099 12r00r00         [24]  763 	lcall	_UsbCdc_IsConfigured
+      00009C E5 82            [12]  764 	mov	a,dpl
+      00009E 60 F9            [24]  765 	jz	00108$
+                                    766 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:99: if(UsbCdc_RxBytes())                                             /* USB 端点收到数据 */
+      0000A0 12r00r00         [24]  767 	lcall	_UsbCdc_RxBytes
+      0000A3 E5 82            [12]  768 	mov	a,dpl
+      0000A5 60 09            [24]  769 	jz	00104$
+                                    770 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:101: uint8_t usbByte = UsbCdc_RxRead();                           /* 读取1字节 */
+      0000A7 12r00r00         [24]  771 	lcall	_UsbCdc_RxRead
+                                    772 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:103: UsbApp_Feed( usbByte );                                      /* 快捷命令滑动匹配 */
+      0000AA 12r00r00         [24]  773 	lcall	_UsbApp_Feed
+                                    774 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:104: UsbCdc_RxDone();
+      0000AD 12r00r00         [24]  775 	lcall	_UsbCdc_RxDone
+      0000B0                        776 00104$:
+                                    777 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:108: if (key_event_get(&key_msg))
+      0000B0 90r00r00         [24]  778 	mov	dptr,#_UsbCmd_Poll_key_msg_65536_57
+      0000B3 75 F0 40         [24]  779 	mov	b,#0x40
+      0000B6 12r00r00         [24]  780 	lcall	_key_event_get
+      0000B9 E5 82            [12]  781 	mov	a,dpl
+      0000BB 60 DC            [24]  782 	jz	00108$
+                                    783 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:110: key_event_report(&key_msg.event);                            /* 上报按键事件到USB-CDC */
+      0000BD 90r00r01         [24]  784 	mov	dptr,#(_UsbCmd_Poll_key_msg_65536_57 + 0x0001)
+      0000C0 75 F0 40         [24]  785 	mov	b,#0x40
+      0000C3 12r00r00         [24]  786 	lcall	_key_event_report
+                                    787 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:113: }
+      0000C6 80 D1            [24]  788 	sjmp	00108$
+                                    789 ;------------------------------------------------------------
+                                    790 ;Allocation info for local variables in function 'main'
+                                    791 ;------------------------------------------------------------
+                                    792 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:119: void main(void)
+                                    793 ;	-----------------------------------------
+                                    794 ;	 function main
+                                    795 ;	-----------------------------------------
+      0000C8                        796 _main:
+                                    797 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:121: CfgFsys();                                                           /* CH554 时钟配置 */
+      0000C8 12r00r00         [24]  798 	lcall	_CfgFsys
+                                    799 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:123: P3_MOD_OC &= ~0x01;                                                  /* P3.0 推挽输出(LED) */
+      0000CB 53 96 FE         [24]  800 	anl	_P3_MOD_OC,#0xfe
+                                    801 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:124: P3_DIR_PU |= 0x01;                                                   /* P3.0 方向为输出 */
+      0000CE 43 97 01         [24]  802 	orl	_P3_DIR_PU,#0x01
+                                    803 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:125: P3 &= ~0x01;                                                         /* P3.0 输出低电平, LED 熄灭 */
+      0000D1 53 B0 FE         [24]  804 	anl	_P3,#0xfe
+                                    805 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:127: mDelaymS(5);                                                         /* 等待内部晶振稳定, 必须添加 */
+      0000D4 90 00 05         [24]  806 	mov	dptr,#0x0005
+      0000D7 12r00r00         [24]  807 	lcall	_mDelaymS
+                                    808 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:131: T2MOD |= bT0_CLK;                                                    /* 设置Timer0时钟为Fsys/4(快速模式) */
+      0000DA 43 C9 10         [24]  809 	orl	_T2MOD,#0x10
+                                    810 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:133: TMOD = (TMOD & 0xF0) | 0x01;                                         /* T0 模式1(16位定时器) */
+      0000DD E5 89            [12]  811 	mov	a,_TMOD
+      0000DF 54 F0            [12]  812 	anl	a,#0xf0
+      0000E1 44 01            [12]  813 	orl	a,#0x01
+      0000E3 F5 89            [12]  814 	mov	_TMOD,a
+                                    815 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:137: TH0 = 0xE8;                                                          /* 重载值高字节(微调后) */
+      0000E5 75 8C E8         [24]  816 	mov	_TH0,#0xe8
+                                    817 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:138: TL0 = 0xFE;                                                          /* 重载值低字节(微调后, ~1ms) */
+      0000E8 75 8A FE         [24]  818 	mov	_TL0,#0xfe
+                                    819 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:139: ET0 = 1;                                                             /* 允许T0中断 */
+                                    820 ;	assignBit
+      0000EB D2 A9            [12]  821 	setb	_ET0
+                                    822 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:140: TR0 = 1;                                                             /* 启动T0 */
+                                    823 ;	assignBit
+      0000ED D2 8C            [12]  824 	setb	_TR0
+                                    825 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:144: UsbCdc_Init();                                                       /* USB-CDC 模块初始化 */
+      0000EF 12r00r00         [24]  826 	lcall	_UsbCdc_Init
+                                    827 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:146: key_init();                                                          /* 按键模块初始化(含P1.2 GPIO配置) */
+      0000F2 12r00r00         [24]  828 	lcall	_key_init
+                                    829 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:148: EA = 1;                                                              /* 开启总中断 */
+                                    830 ;	assignBit
+      0000F5 D2 AF            [12]  831 	setb	_EA
+                                    832 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:150: mDelaymS(100);                                                        /* 等待USB枚举完成 */
+      0000F7 90 00 64         [24]  833 	mov	dptr,#0x0064
+      0000FA 12r00r00         [24]  834 	lcall	_mDelaymS
+                                    835 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:152: UsbCmd_Poll();                                                       /* 命令轮询(不返回) */
+                                    836 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:153: }
+      0000FD 02r00r99         [24]  837 	ljmp	_UsbCmd_Poll
+                                    838 ;------------------------------------------------------------
+                                    839 ;Allocation info for local variables in function 'Timer0Interrupt'
+                                    840 ;------------------------------------------------------------
+                                    841 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:161: void Timer0Interrupt(void) __interrupt (INT_NO_TMR0)                     /* T0 中断服务 */
+                                    842 ;	-----------------------------------------
+                                    843 ;	 function Timer0Interrupt
+                                    844 ;	-----------------------------------------
+      000100                        845 _Timer0Interrupt:
+      000100 C0*00            [24]  846 	push	bits
+      000102 C0 E0            [24]  847 	push	acc
+      000104 C0 F0            [24]  848 	push	b
+      000106 C0 82            [24]  849 	push	dpl
+      000108 C0 83            [24]  850 	push	dph
+      00010A C0 07            [24]  851 	push	(0+7)
+      00010C C0 06            [24]  852 	push	(0+6)
+      00010E C0 05            [24]  853 	push	(0+5)
+      000110 C0 04            [24]  854 	push	(0+4)
+      000112 C0 03            [24]  855 	push	(0+3)
+      000114 C0 02            [24]  856 	push	(0+2)
+      000116 C0 01            [24]  857 	push	(0+1)
+      000118 C0 00            [24]  858 	push	(0+0)
+      00011A C0 D0            [24]  859 	push	psw
+      00011C 75 D0 00         [24]  860 	mov	psw,#0x00
+                                    861 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:163: key_timer_tick();                                                     /* 按键节拍累加与扫描 */
+      00011F 12r00r00         [24]  862 	lcall	_key_timer_tick
+                                    863 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:166: TH0 = 0xE8;                                                          /* 重载高字节 */
+      000122 75 8C E8         [24]  864 	mov	_TH0,#0xe8
+                                    865 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:167: TL0 = 0xFE;                                                          /* 重载低字节(~1ms, 微调后) */
+      000125 75 8A FE         [24]  866 	mov	_TL0,#0xfe
+                                    867 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:168: }
+      000128 D0 D0            [24]  868 	pop	psw
+      00012A D0 00            [24]  869 	pop	(0+0)
+      00012C D0 01            [24]  870 	pop	(0+1)
+      00012E D0 02            [24]  871 	pop	(0+2)
+      000130 D0 03            [24]  872 	pop	(0+3)
+      000132 D0 04            [24]  873 	pop	(0+4)
+      000134 D0 05            [24]  874 	pop	(0+5)
+      000136 D0 06            [24]  875 	pop	(0+6)
+      000138 D0 07            [24]  876 	pop	(0+7)
+      00013A D0 83            [24]  877 	pop	dph
+      00013C D0 82            [24]  878 	pop	dpl
+      00013E D0 F0            [24]  879 	pop	b
+      000140 D0 E0            [24]  880 	pop	acc
+      000142 D0*00            [24]  881 	pop	bits
+      000144 32               [24]  882 	reti
+                                    883 ;------------------------------------------------------------
+                                    884 ;Allocation info for local variables in function 'DeviceInterrupt'
+                                    885 ;------------------------------------------------------------
+                                    886 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:176: void DeviceInterrupt(void) __interrupt (INT_NO_USB)                      /* USB 中断服务 */
+                                    887 ;	-----------------------------------------
+                                    888 ;	 function DeviceInterrupt
+                                    889 ;	-----------------------------------------
+      000145                        890 _DeviceInterrupt:
+      000145 C0*00            [24]  891 	push	bits
+      000147 C0 E0            [24]  892 	push	acc
+      000149 C0 F0            [24]  893 	push	b
+      00014B C0 82            [24]  894 	push	dpl
+      00014D C0 83            [24]  895 	push	dph
+      00014F C0 07            [24]  896 	push	(0+7)
+      000151 C0 06            [24]  897 	push	(0+6)
+      000153 C0 05            [24]  898 	push	(0+5)
+      000155 C0 04            [24]  899 	push	(0+4)
+      000157 C0 03            [24]  900 	push	(0+3)
+      000159 C0 02            [24]  901 	push	(0+2)
+      00015B C0 01            [24]  902 	push	(0+1)
+      00015D C0 00            [24]  903 	push	(0+0)
+      00015F C0 D0            [24]  904 	push	psw
+      000161 75 D0 00         [24]  905 	mov	psw,#0x00
+                                    906 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:178: UsbCdc_DeviceInterrupt();
+      000164 12r00r00         [24]  907 	lcall	_UsbCdc_DeviceInterrupt
+                                    908 ;	d:/tools/WCH/ch554_sdcc-master/examples/usb_device_cdc/source/main.c:179: }
+      000167 D0 D0            [24]  909 	pop	psw
+      000169 D0 00            [24]  910 	pop	(0+0)
+      00016B D0 01            [24]  911 	pop	(0+1)
+      00016D D0 02            [24]  912 	pop	(0+2)
+      00016F D0 03            [24]  913 	pop	(0+3)
+      000171 D0 04            [24]  914 	pop	(0+4)
+      000173 D0 05            [24]  915 	pop	(0+5)
+      000175 D0 06            [24]  916 	pop	(0+6)
+      000177 D0 07            [24]  917 	pop	(0+7)
+      000179 D0 83            [24]  918 	pop	dph
+      00017B D0 82            [24]  919 	pop	dpl
+      00017D D0 F0            [24]  920 	pop	b
+      00017F D0 E0            [24]  921 	pop	acc
+      000181 D0*00            [24]  922 	pop	bits
+      000183 32               [24]  923 	reti
+                                    924 	.area CSEG    (CODE)
+                                    925 	.area CONST   (CODE)
+      000000                        926 _KeyShortPressMsg:
+      000000 4B 45 59 3A 20 53 48   927 	.ascii "KEY: SHORT_PRESS"
+             4F 52 54 5F 50 52 45
+             53 53
+      000010 0D                     928 	.db 0x0d
+      000011 0A                     929 	.db 0x0a
+      000012 00                     930 	.db 0x00
+      000013                        931 _KeyLongPressMsg:
+      000013 4B 45 59 3A 20 4C 4F   932 	.ascii "KEY: LONG_PRESS"
+             4E 47 5F 50 52 45 53
+             53
+      000022 0D                     933 	.db 0x0d
+      000023 0A                     934 	.db 0x0a
+      000024 00                     935 	.db 0x00
+      000025                        936 _KeyRepeatMsg:
+      000025 4B 45 59 3A 20 52 45   937 	.ascii "KEY: REPEAT"
+             50 45 41 54
+      000030 0D                     938 	.db 0x0d
+      000031 0A                     939 	.db 0x0a
+      000032 00                     940 	.db 0x00
+                                    941 	.area XINIT   (CODE)
+                                    942 	.area CABS    (ABS,CODE)

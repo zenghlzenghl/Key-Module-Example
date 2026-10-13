@@ -1,551 +1,417 @@
-# Key Module 工程指南
+# CH554 USB-CDC 按键控制项目
 
-## 1. 项目概述
+基于 CH554 微控制器的 USB-CDC 虚拟串口通信项目，支持 LED 控制和按键事件检测。
 
-本项目是一个基于 **8051 单片机** 的 **按键扫描模块**，采用 **非阻塞状态机** 设计，支持多种按键事件检测：
+## 📋 功能特性
 
-- ✅ 短按检测（释放时触发）
-- ✅ 长按检测（1秒后触发一次）
-- ✅ 连续按检测（长按后每300ms重复触发）
+- **USB-CDC 虚拟串口**：通过 USB 实现串口通信，无需额外 USB-TTL 转换器
+- **LED 控制**：通过命令控制 P3.0 引脚的 LED 亮灭
+- **按键检测**：支持 P1.2 引脚按键的三种事件类型
+  - 短按（SHORT_PRESS）
+  - 长按（LONG_PRESS，约 1 秒）
+  - 连续按（REPEAT，长按后每 300ms 触发一次）
+- **精确时基**：基于 Timer0 的 1ms 中断，误差 < 2%
+- **非阻塞架构**：按键采用状态机 + 事件驱动，不占用主循环
 
-### 技术特点
+## 🔧 硬件要求
 
-| 特性 | 说明 |
-|------|------|
-| **架构** | 非阻塞状态机 + 事件驱动 |
-| **扫描周期** | 10ms（基于1ms定时器中断） |
-| **消抖时间** | 20ms |
-| **长按阈值** | 1000ms |
-| **连续按间隔** | 300ms |
-| **事件机制** | 环形缓冲区（ISR写入，主循环读取） |
-| **目标平台** | 8051单片机（AT89C52/STC89C52等）|
-| **开发环境** | Keil C51 编译器 |
+### 主控芯片
+- **CH554** (或 CH552/CH550 兼容系列)
+- 系统时钟：24 MHz（内部振荡器）
 
----
-
-## 2. 项目结构
-
-```
-key/
-├── source/                 # 源代码目录
-│   ├── key.h              # 按键模块头文件（接口定义+配置参数）
-│   ├── key.c              # 按键模块实现（状态机+事件缓冲）
-│   └── main.c             # 主程序示例（定时器+事件处理）
-├── output/                 # 编译输出目录
-│   └── key.hex            # 烧录文件（HEX格式）
-├── build.bat              # 构建脚本（编译+链接）
-└── 工程指南.md             # 本文档
-```
-
----
-
-## 3. 核心模块详解
-
-### 3.1 配置参数 ([key.h](source/key.h))
-
-```c
-#define KEY_NUM                4       // 按键数量
-#define SCAN_TICK_DIV          10      // 每10ms扫描一次
-#define DEBOUNCE_CNT           2       // 消抖：20ms (2×10ms)
-#define LONG_PRESS_CNT         100     // 长按：1000ms (100×10ms)
-#define REPEAT_INTERVAL_CNT    30      // 连续按间隔：300ms (30×10ms)
-#define EVENT_BUF_SIZE         16      // 事件缓冲大小
-```
-
-**自定义建议：**
-- 调整 `KEY_NUM` 以适配实际按键数量
-- 根据硬件质量调整 `DEBOUNCE_CNT`（机械按键通常20-50ms）
-- 根据交互需求调整 `LONG_PRESS_CNT` 和 `REPEAT_INTERVAL_CNT`
-
-### 3.2 事件类型 ([key.h](source/key.h#L14-L19))
-
-```c
-typedef enum {
-    KEY_EVENT_NONE = 0,        // 无事件
-    KEY_EVENT_SHORT_PRESS,     // 短按（释放时产生）
-    KEY_EVENT_LONG_PRESS,      // 长按（只产生一次）
-    KEY_EVENT_REPEAT           // 连续按（长按后周期产生）
-} KeyEvent;
-```
-
-### 3.3 数据结构 ([key.h](source/key.h#L21-L25))
-
-```c
-typedef struct {
-    unsigned char key_id;      // 按键索引 (0 ~ KEY_NUM-1)
-    KeyEvent      event;       // 事件类型
-} KeyEventMsg;
-```
-
-### 3.4 对外接口 ([key.h](source/key.h#L30-L42))
-
-#### ① 初始化函数
-```c
-void key_init(void);
-```
-- **功能**：清零所有按键状态机和事件缓冲
-- **调用时机**：系统启动时调用一次
-
-#### ② 定时器节拍函数
-```c
-void key_timer_tick(void);
-```
-- **功能**：在定时器中断中调用，累加节拍并执行扫描
-- **调用频率**：每 **1ms** 调用一次
-- **内部逻辑**：每累计10次（即10ms）扫描一次所有按键
-
-#### ③ 事件获取函数
-```c
-unsigned char key_event_get(KeyEventMsg *out);
-```
-- **功能**：从环形缓冲区取出一个事件
-- **返回值**：
-  - `1`：成功取到事件，数据填入 `out`
-  - `0`：缓冲区为空，无事件
-- **调用位置**：主循环中轮询调用
-
----
-
-## 4. 状态机设计 ([key.c](source/key.c))
-
-### 4.1 状态转换图
-
-```
-                    ┌─────────────┐
-                    │  IDLE（空闲） │
-                    └──────┬──────┘
-                           │ 检测到按下
-                           ▼
-               ┌───────────────────────┐
-               │ DEBOUNCE_PRESS（消抖）  │◄──────┐
-               └───────────┬───────────┘        │
-                           │ 消抖完成且仍按下     │ 释放后重新按下
-                           ▼                     │
-               ┌───────────────────────┐        │
-               │   PRESS（按下确认）     │───────┘
-               └───────────┬───────────┘
-                   ┌───────┴───────┐
-                   │               │
-            到时长按(1000ms)    检测到释放
-                   │               │
-                   ▼               ▼
-    ┌─────────────────────┐  ┌────────────────────┐
-    │  LONG_PRESS（长按）  │  │DEBOUNCE_RELEASE    │
-    └──────────┬──────────┘  │ （释放消抖）        │
-               │             └──────────┬─────────┘
-     连续按间隔(300ms)                  │ 消抖完成
-               │                       │
-               ▼                       ▼
-        产生REPEAT事件          产生SHORT_PRESS事件
-               │                       │
-               └───────────┬───────────┘
-                           │ 检测到释放 / 消抖完成
-                           ▼
-                    ┌─────────────┐
-                    │  IDLE（空闲）│
-                    └─────────────┘
-```
-
-### 4.2 各状态说明
-
-| 状态 | 触发条件 | 动作 | 产生事件 |
-|------|---------|------|---------|
-| **IDLE** | 初始状态/释放后 | 等待按下 | 无 |
-| **DEBOUNCE_PRESS** | 检测到按下 | 消抖计数（20ms） | 无 |
-| **PRESS** | 消抖确认按下 | 计时等待长按 | 无 |
-| **DEBOUNCE_RELEASE** | 检测到释放 | 消抖计数（20ms） | **SHORT_PRESS**（若未长按）|
-| **LONG_PRESS** | 按下超过1000ms | 周期计时 | **LONG_PRESS**（首次）/ **REPEAT**（后续）|
-
-### 4.3 关键约束
-
-1. **短按只在释放时产生**（且未触发过长按）
-2. **长按只产生一次**（进入LONG_PRESS状态时）
-3. **连续按只产生REPEAT事件**（不会重复产生LONG_PRESS）
-
----
-
-## 5. 硬件连接 ([key.c](source/key.c#L8-L12))
-
-### 当前配置（可修改）
-
-```c
-sbit KEY0 = P1^0;    // 按键0 → P1.0
-sbit KEY1 = P1^1;    // 按键1 → P1.1
-sbit KEY2 = P1^2;    // 按键2 → P1.2
-sbit KEY3 = P1^3;    // 按键3 → P1.3
-```
-
-### 硬件要求
-
-- **按键类型**：轻触开关（ tactile switch）
-- **电平逻辑**：**低电平有效**（按下为0，释放为1）
-- **上拉电阻**：
-  - ✅ 可使用单片机内部上拉（默认）
-  - ✅ 或外接 4.7KΩ~10KΩ 上拉电阻
-- **电路参考**：
-
-```
-VCC ────┬───────── P1.x（MCU）
-        │
-       [R] 4.7KΩ（上拉，可选）
-        │
-       [KEY] 按键
-        │
-GND ────┴───────── GND
-```
-
-### 扩展按键方法
-
-1. 修改 `KEY_NUM` 宏定义
-2. 在 [key.c](source/key.c#L8-L12) 添加新的 `sbit` 定义
-3. 在 [key_is_pressed()](source/key.c#L96-L107) 函数添加新的case分支
-
-**示例（添加第5个按键）：**
-```c
-// key.h
-#define KEY_NUM  5
-
-// key.c
-sbit KEY4 = P1^4;
-
-static unsigned char key_is_pressed(unsigned char id)
-{
-    // ...原有代码...
-    case 4: return (KEY4 == 0) ? 1 : 0;
-    default: return 0;
-}
-```
-
----
-
-## 6. 使用示例 ([main.c](source/main.c))
-
-### 6.1 完整初始化流程
-
-```c
-#include <reg52.h>
-#include "key.h"
-
-void main(void)
-{
-    KeyEventMsg msg;
-    
-    // ① 初始化硬件定时器（1ms中断）
-    timer0_init();
-    
-    // ② 初始化按键模块
-    key_init();
-    
-    // ③ 主循环
-    while (1)
-    {
-        // ④ 轮询获取事件
-        if (key_event_get(&msg))
-        {
-            // ⑤ 处理事件
-            handle_key_event(msg.key_id, msg.event);
-        }
-        
-        // ⑥ 其他非阻塞任务...
-    }
-}
-```
-
-### 6.2 定时器配置（必须1ms中断）
-
-```c
-void timer0_init(void)
-{
-    TMOD &= 0xF0;    // 清除T0控制位
-    TMOD |= 0x01;    // T0模式1（16位定时器）
-    
-    // 11.0592MHz, 12T模式, 1ms:
-    TH0 = 0xFC;
-    TL0 = 0x66;
-    
-    ET0 = 1;         // 允许T0中断
-    EA  = 1;         // 开总中断
-    TR0 = 1;         // 启动T0
-}
-
-void timer0_isr(void) interrupt 1
-{
-    TH0 = 0xFC;      // 重装初值
-    TL0 = 0x66;
-    
-    key_timer_tick(); // ★ 必须调用此函数
-}
-```
-
-### 6.3 事件处理示例
-
-```c
-void handle_key_event(unsigned char id, KeyEvent ev)
-{
-    switch (ev)
-    {
-        case KEY_EVENT_SHORT_PRESS:
-            printf("KEY%d 短按\n", id);
-            // 执行短按动作...
-            break;
-            
-        case KEY_EVENT_LONG_PRESS:
-            printf("KEY%d 长按\n", id);
-            // 执行长按动作...
-            break;
-            
-        case KEY_EVENT_REPEAT:
-            printf("KEY%d 连续按\n", id);
-            // 执行连续按动作（如音量调节）
-            break;
-    }
-}
-```
-
----
-
-## 7. 构建与烧录
-
-### 7.1 环境要求
-
-- **操作系统**：Windows
-- **编译器**：Keil C51（已配置路径：`E:\keil\C51\BIN\`）
-- **烧录工具**：STC-ISP / USBASP 等（根据具体MCU型号）
-
-### 7.2 构建命令
-
-#### 完整构建
-```bash
-build.bat
-```
-**输出**：`output/key.hex`
-
-#### 清理中间文件
-```bash
-build.bat clean
-```
-**保留**：仅保留 `.hex` 文件，删除 `.obj/.abs/.lst/.M51`
-
-### 7.3 构建流程详解
-
-[build.bat](build.bat) 脚本执行以下步骤：
-
-1. **编译源文件**
-   ```bash
-   c51.exe source/main.c DEBUG OBJECT(output\main.obj) PRINT(source\main.lst)
-   c51.exe source/key.c   DEBUG OBJECT(output\key.obj)   PRINT(source\key.lst)
-   ```
-
-2. **链接目标文件**
-   ```bash
-   bl51.exe output\main.obj,output\key.obj TO output\key.abs PRINT(output\key.M51)
-   ```
-
-3. **生成HEX文件**
-   ```bash
-   oh51.exe output\key.abs HEXFILE(output\key.hex)
-   ```
-
-### 7.4 修改编译器路径
-
-如果Keil安装路径不同，请编辑 [build.bat](build.bat#L18-L21)：
-
-```bat
-set C51=你的路径\C51\BIN\c51.exe
-set BL51=你的路径\C51\BIN\bl51.exe
-set OH51=你的路径\C51\BIN\oh51.exe
-set C51INC=你的路径\C51\INC;你的路径\C51\INC\Atmel;source
-```
-
----
-
-## 8. API 参考手册
-
-### 8.1 函数列表
-
-| 函数名 | 类型 | 参数 | 返回值 | 说明 |
-|--------|------|------|--------|------|
-| `key_init()` | 初始化 | void | void | 初始化按键模块 |
-| `key_timer_tick()` | 中断服务 | void | void | 1ms定时器中断调用 |
-| `key_event_get()` | 事件获取 | `KeyEventMsg *out` | `unsigned char` | 取出事件（1=成功，0=空）|
-
-### 8.2 数据类型
-
-#### KeyEvent（枚举）
-```c
-typedef enum {
-    KEY_EVENT_NONE = 0,        // 无事件
-    KEY_EVENT_SHORT_PRESS,     // 短按
-    KEY_EVENT_LONG_PRESS,      // 长按
-    KEY_EVENT_REPEAT           // 连续按
-} KeyEvent;
-```
-
-#### KeyEventMsg（结构体）
-```c
-typedef struct {
-    unsigned char key_id;      // 按键ID (0~KEY_NUM-1)
-    KeyEvent      event;       // 事件类型
-} KeyEventMsg;
-```
-
-### 8.3 使用模式总结
-
-```
-┌──────────────┐     1ms中断       ┌──────────────────┐
-│  定时器中断    │ ──────────────► │  key_timer_tick() │
-│  (timer0_isr) │                 │  (累加+扫描+入队)  │
-└──────────────┘                  └────────┬─────────┘
-                                           │ 写入
-                                           ▼
-                                   ┌─────────────┐
-                                   │ 环形事件缓冲 │
-                                   │ (volatile)  │
-                                   └──────┬──────┘
-                                          │ 读取
-                                          ▼
-┌──────────────┐     轮询调用     ┌──────────────────┐
-│   主循环      │ ◄───────────── │  key_event_get()  │
-│   (main)     │                 │  (出队+返回事件)   │
-└──────────────┘                 └──────────────────┘
-```
-
----
-
-## 9. 注意事项与最佳实践
-
-### ⚠️ 重要提醒
-
-1. **定时器精度**
-   - `key_timer_tick()` 必须 **精确每1ms调用一次**
-   - 否则会导致消抖、长按时间不准
-
-2. **中断安全**
-   - 事件缓冲区使用了 `volatile` 关键字
-   - `key_event_get()` 可在中断外安全调用
-   - **禁止** 在中断内调用 `key_event_get()`
-
-3. **主循环响应速度**
-   - 主循环应在 **100ms 内** 至少调用一次 `key_event_get()`
-   - 否则环形缓冲可能溢出丢失事件
-   - 当前缓冲大小为16个事件（可通过 `EVENT_BUF_SIZE` 调整）
-
-4. **按键数量限制**
-   - 默认支持4个按键，最大理论值 **255**（受 `unsigned char` 限制）
-   - 实际建议不超过 **16** 个（避免扫描耗时过长）
-
-### ✅ 最佳实践
-
-1. **模块化使用**
-   - 将 `key.c` 和 `key.h` 作为独立模块移植到其他项目
-   - 只需修改硬件定义部分（`sbit` 和 `key_is_pressed()`）
-
-2. **事件驱动架构**
-   - 采用"生产者-消费者"模式：ISR生产事件，主循环消费事件
-   - 保持主循环简洁，避免阻塞操作
-
-3. **调试技巧**
-   - 通过LED或串口输出事件信息，验证按键响应
-   - 示例代码已提供LED指示（见 [main.c](source/main.c#L49-L63)）
-
-4. **性能优化**
-   - 如需更快的响应，可减小 `SCAN_TICK_DIV`（如改为5，即5ms扫描）
-   - 相应调整 `DEBOUNCE_CNT` 等时间参数保持不变
-
----
-
-## 10. 常见问题排查
-
-### Q1: 按键无反应
-**可能原因：**
-- ❌ 定时器未正确初始化或未启动
-- ❌ `key_timer_tick()` 未在中断中调用
-- ❌ 硬件接线错误（检查上拉电阻、IO口）
-- ❌ 按键电平逻辑反了（高电平有效需修改 `key_is_pressed()`）
-
-**解决方法：**
-1. 用示波器/逻辑分析仪检查IO口电平变化
-2. 在 `key_timer_tick()` 入口处翻转测试LED，确认中断正常
-
-### Q2: 按键抖动严重（一次按下多次触发）
-**可能原因：**
-- ❌ `DEBOUNCE_CNT` 设置过小
-- ❌ 按键质量差（接触不良）
-
-**解决方法：**
-- 增大 `DEBOUNCE_CNT`（如改为3~5，即30~50ms）
-- 更换质量更好的按键
-- 在硬件上加RC滤波电路（如0.1μF电容并联按键）
-
-### Q3: 长按不触发或延迟很大
-**可能原因：**
-- ❌ `LONG_PRESS_CNT` 设置过大
-- ❌ 定时器实际中断频率不是1ms
-
-**解决方法：**
-- 检查定时器初值计算是否正确（见6.2节）
-- 用示波器测量中断周期
-- 临时减小 `LONG_PRESS_CNT` 测试
-
-### Q4: 连续按功能不需要
-**解决方法：**
-在事件处理函数中忽略 `KEY_EVENT_REPEAT` 即可：
-```c
-case KEY_EVENT_REPEAT:
-    // 故意忽略，不做任何处理
-    break;
-```
-
-### Q5: 如何支持矩阵键盘？
-**当前模块仅支持独立按键**。如需矩阵键盘：
-1. 修改 `key_is_pressed()` 实现行列扫描
-2. 调整 `SCAN_TICK_DIV` 给扫描留足时间
-3. 或考虑使用专用矩阵键盘扫描芯片（如TCA8418）
-
----
-
-## 11. 移植指南
-
-### 支持其他8051兼容MCU
-
-本模块可轻松移植到任何8051内核单片机：
-
-| 步骤 | 修改内容 | 文件 |
-|------|---------|------|
-| 1 | 修改按键IO口定义 | [key.c](source/key.c#L8-L12) |
-| 2 | 调整定时器初值（如果晶振频率不同）| [main.c](source/main.c#L18-L22) |
-| 3 | 根据需要调整 `KEY_NUM` | [key.h](source/key.h#L5) |
-
-### 移植到其他平台（STM32/ESP32等）
-
-核心算法（状态机+事件缓冲）是平台无关的，只需修改：
-
-1. **硬件抽象层**：替换 `sbit` 定义为GPIO读写函数
-2. **定时器驱动**：使用目标平台的定时器中断
-3. **数据类型**：将 `unsigned char` 替换为 `uint8_t` 等
-
-**预计工作量**：30分钟~1小时
-
----
-
-## 12. 版本历史
-
-| 版本 | 日期 | 说明 |
+### 外部硬件
+| 功能 | 引脚 | 说明 |
 |------|------|------|
-| v1.0 | 2026-10-12 | 初始版本，支持短按/长按/连续按 |
+| **LED** | P3.0 | 低电平点亮，推挽输出 |
+| **按键** | P1.2 | 低电平有效，内部上拉电阻 |
+| **USB** | D+/D- | USB 2.0 Full Speed |
+
+### 硬件连接示例
+```
+CH554                    外部电路
+┌──────┐                ┌─────────┐
+│      │    P3.0 ───────┤ LED ├─┤ GND │ (串联220Ω电阻)
+│      │                └─────────┘
+│  CH554│
+│      │    P1.2 ───────┤ 按键 ├─┤ GND │
+│      │                └─────────┘
+│      │
+│      │    D+  ─────── USB D+ (数据线)
+│      │    D-  ─────── USB D- (数据线)
+│      │    VCC ─────── USB 5V (供电)
+│      │    GND ─────── USB GND
+└──────┘
+```
+
+## 📦 编译环境
+
+### 必需工具
+- **SDCC** (Small Device C Compiler) for 8051
+  - 下载地址：http://sdcc.sourceforge.net/
+  - 推荐版本：SDCC 4.2.0 或更高
+
+- **WCHISPTool** (烧录工具)
+  - 下载地址：WCH 官网
+  - 位于 `tools/WCHISPTool_CH54x-55x.zip`
+
+### 编译步骤
+
+#### 方法一：使用 Make（推荐）
+
+```bash
+# 进入项目目录
+cd usb_device_cdc
+
+# 编译（生成 build/usb_device_cdc.bin 和 .hex）
+make all
+
+# 清理编译产物
+make clean
+
+# 编译并烧录
+make flash
+```
+
+#### 方法二：使用批处理脚本（Windows）
+
+```bash
+# 编译
+.\build.bat
+
+# 烧录
+.\flash.bat
+```
+
+### 编译选项（Makefile）
+
+```makefile
+FREQ_SYS   ?= 24000000    # 系统频率 (Hz)
+XRAM_SIZE  ?= 0x0300      # 外部 RAM 大小 (768 字节)
+XRAM_LOC   ?= 0x0100      # 外部 RAM 起始地址
+CODE_SIZE  ?= 0x3800      # 代码空间大小 (14 KB)
+```
+
+## 🚀 烧录方法
+
+### 1. 进入引导模式
+
+CH554 支持通过 USB 自动进入下载模式：
+
+1. **断开 USB**
+2. **按住按键**（可选，某些板子需要）
+3. **连接 USB**
+4. **松开按键**（如果按住了）
+5. 设备会自动进入 ISP 下载模式
+
+### 2. 使用 WCHISPTool 烧录
+
+```bash
+# Linux/macOS
+wchisptool -g -f build/usb_device_cdc.bin
+
+# Windows (使用提供的脚本)
+.\flash.bat
+```
+
+### 3. 验证烧录
+
+烧录成功后，设备会自动复位并运行用户程序。
+
+## 💻 使用说明
+
+### 1. 连接设备
+
+1. 将 CH554 通过 USB 连接到电脑
+2. 电脑会识别为 **USB Serial Device**（COM 端口）
+3. 打开串口助手软件（如 PuTTY、Tera Term、SecureCRT 等）
+4. 选择对应的 COM 端口，波特率可任意设置（USB-CDC 不受波特率限制）
+
+### 2. USB-CDC 命令
+
+设备支持以下命令（**无需回车，实时匹配**）：
+
+| 命令 | 功能 | 示例输出 |
+|------|------|----------|
+| `help` | 显示帮助信息 | `USB-CDC CMD: help/?/download/led_on/led_off` |
+| `?` | 同 `help` | 同上 |
+| `led_on` | 点亮 LED | `LED ON` |
+| `led_off` | 熄灭 LED | `LED OFF` |
+| `download` | 进入 Bootloader 模式 | `Enter download mode...` |
+
+**使用示例：**
+```
+# 在串口助手中直接输入（不需要按回车）:
+led_on     → 立即执行，返回 "LED ON"
+led_off    → 立即执行，返回 "LED OFF"
+help       → 显示可用命令列表
+```
+
+### 3. 按键事件
+
+按下 P1.2 引脚的按键后，设备会自动上报按键事件到 USB-CDC：
+
+#### 事件类型
+
+| 事件 | 触发条件 | 输出格式 | 典型应用 |
+|------|----------|----------|----------|
+| **SHORT_PRESS** | 按下时间 < 1 秒 | `KEY: SHORT_PRESS` | 单击、切换状态 |
+| **LONG_PRESS** | 按下时间 ≥ 1 秒 | `KEY: LONG_PRESS` | 长按菜单、特殊功能 |
+| **REPEAT** | 长按后每 300ms | `KEY: REPEAT` | 连续调节、快进 |
+
+#### 时序图
+
+```
+时间轴:  0ms     1000ms   1300ms   1600ms   1900ms ...
+         │        │        │        │        │
+         ▼        ▼        ▼        ▼        ▼
+按下 ─────────────────────────────────────────────
+         │                 │        │        │
+         │←── 1秒 ─────────┤←300ms→│←300ms→│
+         │                 │        │        │
+输出:    SHORT_PRESS(释放时) LONG_PRESS  REPEAT   REPEAT  ...
+```
+
+**实际输出示例：**
+```
+[14:15:50.123] KEY: SHORT_PRESS          ← 快速按一下
+[14:15:50.754] KEY: LONG_PRESS           ← 按住1秒
+[14:15:51.051] KEY: REPEAT              ← 继续按住
+[14:15:51.349] KEY: REPEAT              ← 每300ms一次
+[14:15:51.646] KEY: REPEAT
+...
+[14:15:52.100]                          ← 释放按键（无输出）
+```
+
+## 🏗️ 项目结构
+
+```
+usb_device_cdc/
+├── README.md                  # 本文档
+├── Makefile                   # Make 构建脚本
+├── build.bat                  # Windows 编译脚本
+├── flash.bat                  # Windows 烧录脚本
+├── flash.ps1                  # PowerShell 烧录脚本
+│
+├── source/                    # 源代码目录（参与编译的文件）
+│   ├── main.c                 # 主程序（初始化 + 主循环 + ISR）
+│   ├── usbcdc.c               # USB-CDC 协议栈
+│   ├── usbcdc.h               # USB-CDC 头文件
+│   ├── usbapp.c               # 应用层命令解析
+│   ├── usbapp.h               # 命令解析头文件
+│   ├── key.c                  # 按键扫描模块
+│   ├── key.h                  # 按键模块头文件
+│   ├── debug.c                # 调试库（时钟配置、延时函数）
+│   ├── debug.h                # 调试库头文件
+│   ├── ch554.h                # CH554 寄存器定义
+│   ├── ch554_usb.h            # USB 寄存器定义
+│   ├── ch554_datatypes.h      # 数据类型定义
+│   └── bootloader.h           # Bootloader 相关定义
+│
+├── other_source/              # 未使用的外设驱动（备用）
+│   ├── adc.c / adc.h          # ADC 模数转换
+│   ├── eeprom.c / eeprom.h    # EEPROM 存储
+│   ├── i2c.c / i2c.h          # I2C 通信
+│   ├── pwm.h                  # PWM 脉宽调制
+│   ├── remote.c / remote.h    # 红外/无线遥控
+│   ├── spi.c / spi.h          # SPI 通信
+│   └── touchkey.c / touchkey.h # 触摸按键
+│
+├── build/                     # 编译输出目录
+│   ├── usb_device_cdc.bin     # 二进制固件（用于烧录）
+│   ├── usb_device_cdc.hex     # Intel HEX 格式
+│   ├── usb_device_cdc.ihx     # SDCC 输出格式
+│   └── *.rel, *.asm, *.lst   # 编译中间文件
+│
+└── tools/
+    └── WCHISPTool_CH54x-55x.zip  # 烧录工具
+```
+
+## ⚙️ 技术细节
+
+### Timer0 配置（关键！）
+
+本项目使用 Timer0 实现 1ms 精确定时中断，用于按键扫描。**特别注意以下两点：**
+
+#### 1. 定时器时钟源配置
+
+CH554 的定时器时钟必须通过 `T2MOD` 寄存器明确配置：
+
+```c
+T2MOD |= bT0_CLK;  // 设置 Timer0 时钟为 Fsys/4 = 6MHz
+```
+
+**如果不配置，Timer0 会使用未知的默认时钟，导致时基严重偏差！**
+
+#### 2. 模式1 手动重载
+
+Timer0 使用模式1（16位定时器），**该模式不会自动重载计数器**，必须在 ISR 中手动重新加载：
+
+```c
+void Timer0Interrupt(void) __interrupt (INT_NO_TMR0)
+{
+    key_timer_tick();  // 按键扫描
+
+    // 关键！必须手动重载，否则修改 TH0/TL0 无效！
+    TH0 = 0xE8;
+    TL0 = 0xFE;
+}
+```
+
+**当前参数（精确校准后）：**
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| T2MOD | bT0_CLK = 1 | Timer0 时钟 = Fsys/4 = 6 MHz |
+| TMOD | 模式1 | 16 位定时器 |
+| TH0:TL0 | 0xE8FE | 重载值，计数值 = 5890 ticks |
+| 实际周期 | ~0.98 ms | 误差 < 2% |
+| 扫描周期 | ~9.8 ms | 10 次中断扫描一次按键 |
+
+### 按键参数配置
+
+在 `source/key.h` 中可以调整按键时序：
+
+```c
+#define SCAN_TICK_DIV          10      // 每 10ms 扫描一次（10 × 1ms）
+#define DEBOUNCE_CNT           2       // 消抖：20ms
+#define SHORT_PRESS_CNT        10      // 短按：<100ms
+#define LONG_PRESS_CNT         100     // 长按：≥1000ms (1秒)
+#define REPEAT_INTERVAL_CNT    30      // 连续按间隔：300ms
+```
+
+### 内存使用
+
+CH554 资源有限，本项目优化了内存使用：
+
+- **内部 RAM (IDATA)**：256 字节（堆栈、全局变量）
+- **外部 RAM (XRAM)**：768 字节（USB 缓冲区、大数组）
+- **Flash (CODE)**：~14 KB（程序代码）
+
+**关键优化：**
+- 将大型数组（如 USB 缓冲区、按键事件队列）放在 XRAM
+- 使用 `__xdata` 关键字显式指定外部 RAM
+- 避免在 ISR 中使用大量局部变量
+
+## 🐛 常见问题
+
+### Q1: 编译报错 "RAM overflow"
+
+**原因：** 内部 RAM (256 字节) 超限。
+
+**解决方案：**
+1. 检查是否有大数组未放在 XRAM
+2. 使用 `__xdata` 关键字将大数组移到外部 RAM
+3. 减少全局变量数量
+
+**示例：**
+```c
+// 错误：占用内部 RAM
+uint8_t big_buffer[512];
+
+// 正确：使用外部 RAM
+__xdata uint8_t big_buffer[512];
+```
+
+### Q2: USB 无法枚举
+
+**可能原因及解决方案：**
+
+1. **USB 线缆问题**
+   - 使用数据线（不仅是充电线）
+   - 尝试更换 USB 线
+
+2. **时钟未稳定**
+   - 确保 `mDelaymS(5)` 在 USB 初始化前调用
+   - 检查 `CfgFsys()` 是否正确配置
+
+3. **驱动问题**
+   - Windows 10+ 通常自动识别
+   - 较旧系统可能需要安装 CDC 驱动
+
+### Q3: 按键无响应
+
+**检查项：**
+
+1. **引脚冲突**
+   - P3.6 不能用作按键（复用 USB D-）
+   - 当前使用 P1.2，确保无冲突
+
+2. **上拉电阻**
+   - 代码中已启用内部上拉：`P1_DIR_PU |= 0x04`
+   - 如果外部有强下拉，可能导致无法检测
+
+3. **消抖时间**
+   - 如果按键过于灵敏，增加 `DEBOUNCE_CNT`
+   - 如果按键不灵敏，减少 `DEBOUNCE_CNT`
+
+### Q4: 时基不准确
+
+**如果发现按键时间不准：**
+
+1. **确认 T2MOD 已配置**
+   ```c
+   T2MOD |= bT0_CLK;  // 必须有这行！
+   ```
+
+2. **确认 ISR 中有手动重载**
+   ```c
+   void Timer0Interrupt() {
+       key_timer_tick();
+       TH0 = 0xE8;  // 必须重载！
+       TL0 = 0xFE;
+   }
+   ```
+
+3. **微调 TH0/TL0 值**
+   - 如果太慢：减小 TH0/TL0（减少计数值）
+   - 如果太快：增大 TH0/TL0（增加计数值）
+
+### Q5: 烧录失败
+
+**解决方案：**
+
+1. **重新进入 ISP 模式**
+   - 断开 USB
+   - 按住板载按键（如果有）
+   - 重新连接 USB
+   - 松开按键
+
+2. **检查 WCHISPTool 版本**
+   - 使用最新版本
+   - 确认支持 CH554
+
+3. **权限问题（Linux）**
+   - 添加 udev 规则
+   - 或使用 `sudo`
+
+## 📝 修改历史
+
+### v1.1.0 (当前版本)
+- ✅ 修复 Timer0 时基问题（从 35 秒修正到 1 秒）
+- ✅ 添加 T2MOD 时钟源配置
+- ✅ 添加 ISR 手动重载机制
+- ✅ 精确校准 TH0/TL0 参数（误差 < 2%）
+- ✅ 移除 EEPROM 编程功能
+- ✅ 移除 Remote 模块（红外/无线遥控）
+- ✅ 按键引脚从 P3.6 改为 P1.2（避免与 USB D- 冲突）
+- ✅ 清理所有调试代码
+
+### v1.0.0 (初始版本)
+- 基于 CH554 SDK 的 USB-CDC 示例
+- 基本的 USB 通信功能
+- LED 控制
+- Bootloader 支持
+
+## 📄 许可证
+
+本项目基于 WCH 官方 SDK 修改，遵循原始许可证。
+
+## 🙏 致谢
+
+- [WCH](http://www.wch.cn/) - 提供 CH554 芯片和开发工具
+- [SDCC](http://sdcc.sourceforge.net/) - 开源 8051 编译器
+- 按键模块参考了社区开源实现
 
 ---
 
-## 13. 许可证
-
-本项目仅供学习和参考使用。
-
----
-
-## 14. 联系方式
-
-如有问题或建议，请提交Issue或联系开发者。
-
----
-
-**文档最后更新**：2026-10-12
+**如有问题或建议，欢迎提交 Issue！**
