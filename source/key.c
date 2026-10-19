@@ -18,6 +18,8 @@ typedef enum
     KEY_ST_DEBOUNCE_PRESS,
     KEY_ST_PRESS,
     KEY_ST_DEBOUNCE_RELEASE,
+    KEY_ST_LONG_PRESS_WAIT_RELEASE,
+    KEY_ST_LONG_PRESS_ONCE_WAIT_RELEASE,  /* 长按已触发一次，等待释放 */
     KEY_ST_LONG_PRESS
 } KeyState;
 
@@ -103,9 +105,17 @@ static KeyEvent key_scan_one(uint8_t id)
             {
                 if (++k->timer >= LONG_PRESS_CNT)
                 {
-                    ev = KEY_EVENT_LONG_PRESS;
-                    k->long_triggered = 1;     /* 只产生一次长按 */
-                    k->state = KEY_ST_LONG_PRESS;
+                    k->long_triggered = 1;     /* 标记已达到长按时间 */
+#if KEY_LONG_PRESS_ON_RELEASE
+                    k->state = KEY_ST_LONG_PRESS_WAIT_RELEASE;  /* 等待释放才触发长按 */
+#else
+                    ev = KEY_EVENT_LONG_PRESS;  /* 立即触发长按事件 */
+#if KEY_REPEAT_ENABLE
+                    k->state = KEY_ST_LONG_PRESS;     /* 进入连续按状态 */
+#else
+                    k->state = KEY_ST_LONG_PRESS_ONCE_WAIT_RELEASE;  /* 长按已触发一次，等待释放 */
+#endif
+#endif
                     k->timer = 0;
                 }
             }
@@ -134,6 +144,28 @@ static KeyEvent key_scan_one(uint8_t id)
             }
             break;
 
+        case KEY_ST_LONG_PRESS_WAIT_RELEASE:
+            if (pressed)
+            {
+#if KEY_REPEAT_ENABLE
+                if (++k->timer >= REPEAT_START_CNT)
+                {
+                    ev = KEY_EVENT_REPEAT;            /* 继续按住达到3秒，产生第一个连续按事件 */
+                    k->state = KEY_ST_LONG_PRESS;     /* 进入连续按状态 */
+                    k->timer = 0;
+                }
+#endif
+            }
+            else
+            {
+                ev = KEY_EVENT_LONG_PRESS;            /* 释放时触发长按事件 */
+                k->state = KEY_ST_IDLE;
+                k->timer = 0;
+                k->long_triggered = 0;
+            }
+            break;
+
+#if KEY_REPEAT_ENABLE
         case KEY_ST_LONG_PRESS:
             if (pressed)
             {
@@ -150,6 +182,18 @@ static KeyEvent key_scan_one(uint8_t id)
                 k->long_triggered = 0;
             }
             break;
+#endif
+
+#if !KEY_REPEAT_ENABLE
+        case KEY_ST_LONG_PRESS_ONCE_WAIT_RELEASE:
+            if (!pressed)
+            {
+                k->state = KEY_ST_IDLE;
+                k->timer = 0;
+                k->long_triggered = 0;
+            }
+            break;
+#endif
 
         default:
             k->state = KEY_ST_IDLE;

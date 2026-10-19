@@ -7,8 +7,13 @@
 #define KEY_NUM                1       /* 按键数量: 1个 */
 #define SCAN_TICK_DIV          10      /* 每 10ms 扫描一次（1ms 中断计数到 10） */
 #define DEBOUNCE_CNT           2       /* 消抖：20ms */
-#define LONG_PRESS_CNT         100     /* 长按：1000ms (1秒) */
-#define REPEAT_INTERVAL_CNT    30      /* 连续按间隔：300ms */
+#define LONG_PRESS_CNT         300     /* 长按：3000ms (3秒) */
+#define REPEAT_START_CNT       300     /* 连续按启动：3000ms (3秒，长按后再等3秒) */
+#define REPEAT_INTERVAL_CNT    15      /* 连续按间隔：150ms */
+
+/* ===================== 功能开关 ===================== */
+#define KEY_LONG_PRESS_ON_RELEASE  0   /* 长按触发方式: 1=释放时触发, 0=满时间立即触发 */
+#define KEY_REPEAT_ENABLE          0   /* 连续按模式: 1=支持, 0=不支持 */
 
 #define EVENT_BUF_SIZE         16      /* 事件环形缓冲大小 */
 
